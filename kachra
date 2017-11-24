@@ -1,0 +1,97 @@
+######### server kachra ##########
+
+@n_clients 5000
+  @max_followers 5000
+  
+  def createClients do
+    IO.puts "creating #{@n_clients} client processes"
+    # creating client processes
+    clients = Enum.reduce(1..@n_clients, [], fn x, client_list ->
+      pid = spawn(fn -> Client.init() end)
+      client_list = client_list ++ [pid]
+    end)
+
+    IO.puts "distributing number of followed according to zipf distribution"
+    # distributing number of followers according to zipf distribution 
+    # rank = index +1
+    followers = Enum.reduce(1..@n_clients, [], fn x, acc -> 
+       acc = acc ++ [@max_followers / x |> round]
+    end)
+
+    IO.puts "creating and mapping follow-follower relationships"
+    # mapping the actual follow relationships
+    follow_map = Enum.reduce(1..@n_clients, %{}, fn i, acc1 -> 
+      IO.puts i 
+      follower_list = Enum.reduce(1..Enum.at(followers, i-1), [], fn _, acc -> 
+        acc = acc ++ [Util.pickRandom(clients--[Enum.at(clients, i)] )]  
+      end) 
+     
+      Map.put(acc1, i, follower_list)
+    end)
+
+    IO.puts "built the network, start tweeting!"
+    #sending each client the frequency with which it should tweet based on the number of followers it has
+    Enum.each(1..@n_clients, fn client_rank -> 
+      num_followers = Enum.at(followers, client_rank-1)
+      send(Enum.at(clients, client_rank-1), {:num_followers, num_followers, client_rank})
+    end)
+
+    listen()
+  end
+
+  def listen do
+    receive do
+      {:handle_tweet, tweet, sender} ->
+          processTweet(sender, tweet) 
+        #IO.inspect Map.fetch(tweet_metadata, :mentions)   
+        listen()    
+    end
+  end
+
+  def processTweet(sender, tweet) do
+    IO.puts "#{inspect sender} tweeted #{tweet}"
+    tokens = String.split(tweet)
+    
+    mentions = Enum.filter(tokens, fn token ->
+      String.at(token, 0) == "@"  
+    end)
+
+    hashtags = Enum.filter(tokens, fn token ->
+      String.at(token, 0) == "#"    
+    end)
+
+    tweet_metadata = %{:hashtags => hashtags, :mentions => mentions, :tweet => tweet}
+  end
+
+
+
+
+
+  ##### client kachra ######
+
+  def init do 
+       #IO.puts "client created"
+      head = :global.whereis_name("head")
+       
+      listen(head) 
+    end
+
+    def listen(head) do
+      receive do
+        {:num_followers, num_followers, rank} -> 
+          client_id = self()
+          tweetWorker(head, self(), rank)
+          #Enum.each(1..num_followers, fn _ ->
+           # spawn(fn -> tweetWorker(head, client_id, rank) end) 
+          #end)
+
+          listen(head)
+      end
+
+      def tweetWorker(head, client_id, rank) do
+      tweet = "hoshlqhilw @user_1 #travel_lust"    
+        
+      send(head, {:handle_tweet, tweet, client_id})
+      :timer.sleep 10
+      tweetWorker(head, client_id, rank)
+    end
