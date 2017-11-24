@@ -1,14 +1,13 @@
 defmodule ClientSimulator do
-  @n_clients 1000
+  @n_clients 100
   use GenServer
   
   def start_link() do
-      IO.puts "sim startlink"
+      IO.puts "simulator starting"
       GenServer.start_link(__MODULE__, nil, name: {:global, :simulator})  
   end
 
   def init(_) do
-    IO.puts "simulator starting"
     IO.puts "creating client processes"
 
     clients = Enum.reduce(1..@n_clients, [], fn rank,t_clients -> 
@@ -19,8 +18,7 @@ defmodule ClientSimulator do
           "rank" => rank, 
           "num_followers" => num_followers,
           "server" => server,
-          "n_clients" => @n_clients,
-          "follow_map" => %{}
+          "n_clients" => @n_clients
         })
 
         t_clients ++ [clientid]

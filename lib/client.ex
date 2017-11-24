@@ -43,8 +43,10 @@ defmodule Client do
     end
 
     def tweet(server, rank) do
+        timestamp = :os.system_time(:seconds)
         tweet = "hoshlqhilw @user_1 #travel_lust"
-        response = GenServer.call(server, {:tweet, rank, tweet})    
+        
+        response = GenServer.call(server, {:tweet, rank, tweet, timestamp})    
         IO.inspect response
     end
 

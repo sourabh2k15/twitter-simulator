@@ -8,11 +8,7 @@ defmodule Main do
         _ = System.cmd("epmd", ['-daemon'])
         {:ok, _} = "server@127.0.0.1" |> String.to_atom |> Node.start
        
-        {:ok, server} = Server.start_link(%{
-          :num_users => 0, 
-          :user_map => %{} ,
-          :follower_map => %{}  
-        })
+        {:ok, server} = Server.start_link()
             
         :global.register_name("main", self())
         wait()

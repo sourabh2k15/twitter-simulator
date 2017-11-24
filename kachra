@@ -48,21 +48,7 @@
     end
   end
 
-  def processTweet(sender, tweet) do
-    IO.puts "#{inspect sender} tweeted #{tweet}"
-    tokens = String.split(tweet)
-    
-    mentions = Enum.filter(tokens, fn token ->
-      String.at(token, 0) == "@"  
-    end)
-
-    hashtags = Enum.filter(tokens, fn token ->
-      String.at(token, 0) == "#"    
-    end)
-
-    tweet_metadata = %{:hashtags => hashtags, :mentions => mentions, :tweet => tweet}
-  end
-
+  
 
 
 
