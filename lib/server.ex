@@ -6,11 +6,45 @@ defmodule Server do
   end
 
   def init(_) do
-    initial_state = %{:num_users => 0, :user_map => %{} ,:follower_map => %{}}
+    initial_state = %{
+      :num_users => 0, :user_map => %{} ,:follower_map => %{}, 
+      :tweet_map => {}, :hashtag_map => %{}, :mention_map => %{}
+    }
 
     IO.puts "server started"     
     {:ok, initial_state}
   end
+
+  '''
+    GET NUM_CLIENTS
+  '''
+  def handle_info({:n_clients, n_clients}, state) do
+    state = Map.put(state, :n_clients, n_clients)  
+    IO.puts state[:n_clients]
+    {:noreply, state}
+  end
+
+  '''
+  UPDATE FOLLOWERS
+
+  @param rank, rank of client
+  @param followers, list of ranks of clients following client with rank = @param rank 
+'''
+
+def handle_info({:followers_update, rank, followers}, state) do
+  #IO.puts "client #{rank}, sent follower list"
+  state = Kernel.put_in(state, [:follower_map, rank], followers)
+  #IO.puts length(Map.keys(state[:follower_map]))
+
+  if length(Map.keys(state[:follower_map])) == state[:n_clients] do 
+    IO.puts "done creating followermap, users will now start tweeting"
+        
+    GenServer.cast({:global, :simulator}, {:start_tweeting}) 
+  end
+  
+  {:noreply, state}  
+end
+
 
   '''
     HANDLE USER TWEET
@@ -21,10 +55,18 @@ defmodule Server do
   '''
 
   def handle_call({:tweet, clientid, tweet, timestamp}, _from, state) do
-    IO.puts "client #{clientid} tweeted: #{tweet}"
+    IO.puts "client #{clientid} tweeted: #{tweet} with timestamp #{timestamp}"
+    
+    # send tweet to all followers 
+    followers = state[:follower_map][clientid]
+    
+    Enum.each(followers, fn rank ->
+       GenServer.cast(state[:user_map][rank], {:subscribed_tweet, clientid, tweet, timestamp})
+    end)
     
     {:reply, {"tweet call acknowledge"}, state}
   end
+
 
   '''
     REGISTER USERS
@@ -34,28 +76,9 @@ defmodule Server do
   ''' 
 
   def handle_info({:register, rank, pid}, state) do
-    IO.puts "client registering #{rank}, #{inspect pid}"
+    #IO.puts "client registering #{rank}, #{inspect pid}"
     state = Kernel.put_in(state, [:user_map, rank], pid)
 
-    {:noreply, state}  
-  end
-
-  '''
-    UPDATE FOLLOWERS
-
-    @param rank, rank of client
-    @param followers, list of ranks of clients following client with rank = @param rank 
-  '''
-
-  def handle_info({:followers_update, rank, followers}, state) do
-    IO.puts "client #{rank}, sent follower list"
-    state = Kernel.put_in(state, [:follower_map, rank], followers)
-
-    if length(Map.keys(state[:follower_map])) == length(Map.keys(state[:user_map])) do 
-      IO.puts "done creating followermap, users will now start tweeting"
-      GenServer.cast({:global, :simulator}, {:start_tweeting}) 
-    end
-    
     {:noreply, state}  
   end
 
@@ -65,7 +88,7 @@ defmodule Server do
     @param sender, rank of client who tweeted
     @param tweet , tweet string
   '''
-  
+
   def processTweet(sender, tweet) do
     IO.puts "#{inspect sender} tweeted #{tweet}"
     tokens = String.split(tweet)

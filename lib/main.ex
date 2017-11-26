@@ -31,7 +31,8 @@ defmodule Main do
     end
 
     def parse_args(_) do
-        IO.puts "please provide an argument 'server' / 'client' "
+        #IO.puts "please provide an argument 'server' / 'client' "
+        Experiment.start()
     end
 
     def wait() do
