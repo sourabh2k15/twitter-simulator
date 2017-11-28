@@ -21,7 +21,7 @@ defmodule Main do
         
         if isConnected do
             :global.sync()
-            ClientSimulator.start_link()
+            Simulator.start_link()
             
             :timer.sleep 10000000
         else 
@@ -31,8 +31,8 @@ defmodule Main do
     end
 
     def parse_args(_) do
-        #IO.puts "please provide an argument 'server' / 'client' "
-        Experiment.start()
+        IO.puts "please provide an argument 'server' / 'client' "
+        #Experiment.start()
     end
 
     def wait() do

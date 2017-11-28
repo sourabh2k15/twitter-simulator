@@ -1,10 +1,10 @@
 defmodule Client do
-    @time_factor 1
+    @time_factor 1000
     @chunk_factor 1000
 
     def start_link(initial_state) do
         GenServer.start_link(__MODULE__, initial_state)
-    end
+    end 
 
     def init(initial_state) do
         register(initial_state) 
@@ -13,22 +13,31 @@ defmodule Client do
         {:ok, initial_state}
     end
 
-    def handle_info({:tweet}, state) do
-        IO.puts "user with rank #{inspect state["rank"]} tweeting"
-        tweet(state["server"], state["rank"])
-
+    def handle_info({:start_tweeting}, state) do
+        tweet_scheduler(state["rank"])
+ 
         {:noreply, state}
     end
 
+    def handle_info({:tweet}, state) do
+       tweet(state["server"], state["rank"])
+       {:noreply, state}
+    end
+
     def handle_cast({:subscribed_tweet, source, tweet, timestamp}, state) do
-        IO.puts "received subscribed tweet from #{source}"
+        IO.puts "received subscribed tweet from #{source}: #{inspect tweet} "
+
+        # TODO randomly choose to retweet sometimes
 
         {:noreply, state}
     end
 
     def handle_cast({:tweet_created, tweet, timestamp}, state) do
-        time_taken = :os.system_time(:micro_seconds) - timestamp
-        IO.puts time_taken
+        IO.puts "user #{state["rank"]} tweeted : #{tweet}"
+
+        response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp})
+        #acktimestamp = :os.system_time(:micro_seconds) - timestamp
+        tweet_scheduler(state["rank"])
 
         {:noreply, state}
     end
@@ -63,14 +72,7 @@ defmodule Client do
     end
 
     def tweet(server, rank) do
-        timestamp = :os.system_time(:micro_seconds)
-
-        GenServer.cast({:global, :simulator}, {:create_tweet, rank, timestamp})
-        #response = GenServer.call(server, {:tweet, rank, tweet, timestamp})
-        
-        #acktimestamp = :os.system_time(:micro_seconds) - timestamp
-        
-        #IO.puts acktimestamp    
+        GenServer.cast({:global, :simulator}, {:create_tweet, rank, self()})
         #IO.inspect response
         
         #tweet_scheduler(rank)
