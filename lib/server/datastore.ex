@@ -23,6 +23,33 @@ defmodule DataStore do
         {:noreply, state}
     end
 
+    def handle_cast({:store_tweet, tweetid, user, tweet, timestamp}, state) do
+        {_, state} = Kernel.get_and_update_in(state, [:tweets_by_user, user], fn x -> 
+            if x == nil do {x, [tweetid]} else {x, x ++ [tweetid]} end 
+        end)
+
+        state = Kernel.put_in(state, [:tweets, tweetid], tweet)
+
+        {:noreply, state}
+    end
+
+    def handle_cast({:mentioned, mentioned, user, tweet}, state) do
+        record = %{
+            :user => user, 
+            :tweet => tweet
+        }
+
+        {_, state} = Kernel.get_and_update_in(state, [:mentions, mentioned], fn x ->
+            if x == nil do 
+                {x, [record]}
+            else 
+                {x, x ++ [record]}
+            end 
+        end)
+        
+        {:noreply, state}
+    end
+
     def handle_call({:get_followers, rank}, _from, state) do
         followers = state[:followers][rank]
         {:reply, followers, state}

@@ -13,5 +13,8 @@ fs.writeFileSync("../tweets.txt", tweets.join("\n"));
 // cleaning non ascii characters i.e weird unicode characters in tweets 
 
 function clean(tweet){
-	return tweet.replace(/[^\x00-\x7F]/g, "");
+	tweet = tweet.replace(/[^\x00-\x7F]/g, "");
+	tweet = tweet.replace(/[^a-zA-Z ]/g, "")
+	
+	return tweet;
 }

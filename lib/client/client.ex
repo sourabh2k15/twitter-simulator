@@ -1,5 +1,5 @@
 defmodule Client do
-    @time_factor 1000
+    @time_factor 100
     @chunk_factor 1000
 
     def start_link(initial_state) do
@@ -20,15 +20,7 @@ defmodule Client do
     end
 
     def handle_info({:tweet}, state) do
-       tweet(state["server"], state["rank"])
-       {:noreply, state}
-    end
-
-    def handle_cast({:subscribed_tweet, source, tweet, timestamp}, state) do
-        IO.puts "received subscribed tweet from #{source}: #{inspect tweet} "
-
-        # TODO randomly choose to retweet sometimes
-
+        GenServer.cast({:global, :simulator}, {:create_tweet, state["rank"], self()})
         {:noreply, state}
     end
 
@@ -38,6 +30,14 @@ defmodule Client do
         response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp})
         #acktimestamp = :os.system_time(:micro_seconds) - timestamp
         tweet_scheduler(state["rank"])
+
+        {:noreply, state}
+    end
+
+    def handle_cast({:subscribed_tweet, source, tweet, timestamp}, state) do
+        IO.puts "received subscribed tweet from #{source}: #{inspect tweet} "
+
+        # TODO randomly choose to retweet sometimes
 
         {:noreply, state}
     end
@@ -69,13 +69,6 @@ defmodule Client do
         IO.puts "creating #{num_followers} followers for client #{rank}"
         
         Kernel.send(state["server"], {:followers_update, state["rank"], followers}) 
-    end
-
-    def tweet(server, rank) do
-        GenServer.cast({:global, :simulator}, {:create_tweet, rank, self()})
-        #IO.inspect response
-        
-        #tweet_scheduler(rank)
     end
 
     def tweet_scheduler(timeout) do 

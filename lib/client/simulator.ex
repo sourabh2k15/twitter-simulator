@@ -58,7 +58,7 @@ defmodule Simulator do
     clients = state[:clients]
 
     Enum.each(1..@n_clients, fn rank -> 
-        Kernel.send(Enum.at(clients, rank-1), {:tweet})
+        Kernel.send(Enum.at(clients, rank-1), {:start_tweeting})
     end)
 
     {:noreply, state}

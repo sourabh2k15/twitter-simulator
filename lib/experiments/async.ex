@@ -1,4 +1,4 @@
-defmodule Experiment do
+defmodule Async do
     @n_clients 100000
 
     def createFollowersSync(n_clients) do
