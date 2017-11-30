@@ -95,9 +95,9 @@ defmodule Server do
     @param timestamp, of when it was generated on client 
   '''
 
-  def handle_call({:tweet, rank, tweet, timestamp}, _from, state) do
+  def handle_call({:tweet, rank, tweet, timestamp, retweet, origin}, _from, state) do
     worker_index =  rank / @distibution_factor |> round 
-    GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp})
+    GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp, retweet, origin})
 
     {:reply, {"tweet call acknowledge"}, state}
   end

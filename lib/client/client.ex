@@ -1,5 +1,5 @@
 defmodule Client do
-    @time_factor 100
+    @time_factor 10
     @chunk_factor 1000
 
     def start_link(initial_state) do
@@ -27,18 +27,28 @@ defmodule Client do
     def handle_cast({:tweet_created, tweet, timestamp}, state) do
         IO.puts "user #{state["rank"]} tweeted : #{tweet}"
 
-        response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp})
+        response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp, false, nil})
         #acktimestamp = :os.system_time(:micro_seconds) - timestamp
         tweet_scheduler(state["rank"])
 
         {:noreply, state}
     end
 
-    def handle_cast({:subscribed_tweet, source, tweet, timestamp}, state) do
-        IO.puts "received subscribed tweet from #{source}: #{inspect tweet} "
+    def handle_cast({:subscribed_tweet, source, tweet, timestamp, retweet, origin}, state) do
+        if retweet do 
+            IO.puts "received subscribed retweet from #{source}, origin: #{origin}: #{inspect tweet} "
+        else 
+            IO.puts "received subscribed tweet from #{source}: #{inspect tweet} "
+        end
 
-        # TODO randomly choose to retweet sometimes
+        timestamp_new = :os.system_time(:micro_seconds)
 
+        retweet = Enum.random(String.split("00000000000000000000000000001", ""))
+        
+        if retweet do
+            Process.sleep state["rank"]*@time_factor
+            response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp_new, retweet, source})        
+        end
         {:noreply, state}
     end
 

@@ -7,10 +7,12 @@ defmodule HashtagStore do
         {:ok, state}
     end
 
-    def handle_cast({:link_tweet, hashtag, user, tweet}, state) do
+    def handle_cast({:link_tweet, hashtag, user, tweet, retweet, origin}, state) do
         record = %{
             :user => user,
-            :tweet => tweet
+            :tweet => tweet,
+            :retweet => retweet, 
+            :origin => origin
         }
 
         {_, state} = Kernel.get_and_update_in(state, [:data, hashtag], fn x ->
