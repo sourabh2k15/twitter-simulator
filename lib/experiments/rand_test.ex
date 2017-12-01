@@ -3,7 +3,7 @@ defmodule RandTest do
 
     def start do
         Enum.each(1..@n_clients, fn _ ->
-            mention_index = Util.generate(1, @n_clients)
+            mention_index = Util.rand(1, @n_clients)
             IO.puts Integer.to_string(mention_index) 
         end)
     end

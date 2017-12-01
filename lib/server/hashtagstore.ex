@@ -25,4 +25,11 @@ defmodule HashtagStore do
 
         {:noreply, state}
     end
+
+    def handle_cast({:query, query, source}, state) do
+        result = state[:data][query]
+        GenServer.cast(source, {:result, query, result})
+        
+        {:noreply, state}
+    end
 end

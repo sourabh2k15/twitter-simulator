@@ -14,7 +14,7 @@ defmodule Processor do
     end
 
     def handle_cast({:tweet, user, tweet, timestamp, retweet, origin}, state) do
-   
+    
         if retweet do
             #IO.puts "client #{user} retweeted #{origin} : #{tweet} with timestamp #{timestamp}"
         else
@@ -39,8 +39,7 @@ defmodule Processor do
         
         ## update hashtag db to link this tweet
         Enum.each(tweet_data[:hashtags], fn hashtag ->
-            hashtag = String.slice(hashtag, 1, String.length(hashtag))
-            hashtag_store_idx = String.at(hashtag, 0)
+            hashtag_store_idx = String.at(hashtag, 1)
        
             GenServer.cast(state[:hashtag_stores][hashtag_store_idx], {:link_tweet, hashtag, user, tweet, retweet, origin})         
         end)

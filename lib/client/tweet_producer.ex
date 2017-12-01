@@ -16,9 +16,9 @@ defmodule TweetProducer do
     end
 
     def handle_cast({:create_tweet, destination}, state) do
-        tweet_index = Util.generate(0, state[:tweets_db_size]-1)
-        hashtag_index = Util.generate(0, state[:hashtags_db_size]-1)
-        mention_index = Util.generate(1, state[:n_clients])
+        tweet_index = Util.rand(0, state[:tweets_db_size]-1)
+        hashtag_index = Util.rand(0, state[:hashtags_db_size]-1)
+        mention_index = Util.rand(1, state[:n_clients])
       
         tweettokens = String.split(Enum.at(state[:tweets], tweet_index), " ")
         tweettokens = tweettokens ++ [Enum.at(state[:hashtags], hashtag_index)]

@@ -1,5 +1,5 @@
 defmodule Client do
-    @time_factor 10
+    @time_factor 100
     @chunk_factor 1000
 
     def start_link(initial_state) do
@@ -43,7 +43,7 @@ defmodule Client do
 
         timestamp_new = :os.system_time(:micro_seconds)
 
-        retweet = Enum.random(String.split("00000000000000000000000000001", ""))
+        retweet = Enum.random(String.split("01", ""))
         
         if retweet do
             Process.sleep state["rank"]*@time_factor

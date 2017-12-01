@@ -1,12 +1,14 @@
 defmodule Main do
+    @server_name "server"
+    @ip "127.0.0.1"
+    
     def main(args) do
         args |> parse_args
     end
 
-    # starting server 
     def parse_args(["server"]) do
         _ = System.cmd("epmd", ['-daemon'])
-        {:ok, _} = "server@127.0.0.1" |> String.to_atom |> Node.start
+        {:ok, _} = @server_name<>"@"<>@ip |> String.to_atom |> Node.start
        
         {:ok, server} = Server.start_link()
             
@@ -14,32 +16,40 @@ defmodule Main do
         wait()
     end
 
-    #starting client simulator
-    def parse_args(["client"]) do
-        {:ok, _} = "client@127.0.0.1" |> String.to_atom |> Node.start
-        isConnected = "server@127.0.0.1" |> String.to_atom |> Node.connect
-        
-        if isConnected do
+    def parse_args(["simulator"]) do
+        connect("client", Simulator)
+    end
+
+    def parse_args(["query"]) do
+       connect("query", Query)
+    end
+
+    def parse_args(_) do
+        IO.puts "please provide an argument 'server' / 'client' "
+    end
+
+    def connect(entity, module) do
+        node_name = entity<>"@"<>@ip
+        server_name = @server_name<>"@"<>@ip
+
+        {:ok, _} = node_name |> String.to_atom |> Node.start
+        isConnected = server_name |> String.to_atom |> Node.connect
+
+        if isConnected do 
             :global.sync()
-            Simulator.start_link()
-            
-            :timer.sleep 10000000
+            module.start_link()
+
+            wait()
         else 
             IO.puts "couldn't connect to server"
             send(self(), {:exit, "client simulator"})
         end
     end
 
-    def parse_args(_) do
-        IO.puts "please provide an argument 'server' / 'client' "
-        #Experiment.start()
-        RandTest.start()
-    end
-
     def wait() do
         receive do
-            {:exit, entity} ->
-                IO.puts "#{entity} ended"
+            {:exit, "server", tweets, time} ->
+                IO.puts "server ended tweets: #{tweets}, time: #{time}"
             {msg} -> 
                 IO.puts "message received on main thread: #{msg}"    
         end

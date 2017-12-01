@@ -16,7 +16,11 @@ defmodule Simulator do
 
       # creating more genservers to handle tweet creation process
 
-      num_tweet_producers = @n_clients / @distibution_factor |> round
+      num_tweet_producers = if @distibution_factor > 0 do
+         @n_clients / @distibution_factor |> round
+      else 
+         1
+      end
       
       tweet_producers = Enum.reduce(0..num_tweet_producers, %{}, fn i, acc -> 
         {:ok, tweet_producer_id} = TweetProducer.start_link(tweets, hashtags, @n_clients)
@@ -24,15 +28,16 @@ defmodule Simulator do
       end)
 
       initial_state = %{
-        :tweet_producers => tweet_producers 
+        :tweet_producers => tweet_producers, 
+        :hashtags        => hashtags 
       }
      
       GenServer.start_link(__MODULE__, initial_state, name: {:global, :simulator})  
   end
 
   def init(state) do
-    IO.puts "creating client processes"
-    
+    IO.puts "creating client processes"    
+
     server = GenServer.whereis({:global, :server})
     send(server, {:num_clients, @n_clients})
     
@@ -68,6 +73,16 @@ defmodule Simulator do
     producer_index = rank / @distibution_factor |> round
     GenServer.cast(state[:tweet_producers][producer_index], {:create_tweet, pid})
  
+    {:noreply, state}
+  end
+
+  def handle_cast({:get_settings}, state) do
+    settings = %{
+      :n_clients => @n_clients,
+      :hashtags  => state[:hashtags]  
+    }
+
+    GenServer.cast({:global, :queryNode}, {:receive_settings, settings})
     {:noreply, state}
   end
 
