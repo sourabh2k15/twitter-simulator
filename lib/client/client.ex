@@ -1,5 +1,5 @@
 defmodule Client do
-    @time_factor 100
+    @time_factor 1
     @chunk_factor 1000
 
     def start_link(initial_state) do
@@ -26,10 +26,15 @@ defmodule Client do
 
     def handle_cast({:tweet_created, tweet, timestamp}, state) do
         IO.puts "user #{state["rank"]} tweeted : #{tweet}"
-
-        response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp, false, nil})
-        #acktimestamp = :os.system_time(:micro_seconds) - timestamp
-        tweet_scheduler(state["rank"])
+        try do
+            GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp, false, nil})
+            #acktimestamp = :os.system_time(:micro_seconds) - timestamp
+            tweet_scheduler(state["rank"])
+        rescue 
+            e -> 
+                IO.puts "error"
+                IO.inspect e
+        end
 
         {:noreply, state}
     end
@@ -43,12 +48,28 @@ defmodule Client do
 
         timestamp_new = :os.system_time(:micro_seconds)
 
-        retweet = Enum.random(String.split("01", ""))
+        retweet = Enum.random([nil,nil,nil,nil,0])
         
         if retweet do
             Process.sleep state["rank"]*@time_factor
-            response = GenServer.call(state["server"], {:tweet, state["rank"], tweet, timestamp_new, retweet, source})        
+            GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp_new, retweet, source})        
         end
+        {:noreply, state}
+    end
+
+    def handle_cast({:follow, followed}, state) do
+        {_, state} = Map.get_and_update(state, "followed", fn x -> 
+            if x == nil do
+                {x, [followed]}
+            else 
+                {x, x ++ [followed]}
+            end
+        end)
+
+        {:noreply, state}
+    end
+    def handle_cast({:exit}, state) do
+        GenServer.stop(self())
         {:noreply, state}
     end
 
@@ -67,7 +88,10 @@ defmodule Client do
         chunked_tasks = Enum.map(chunks, fn chunk -> 
             task = Task.async(fn ->
                 followers_chunk = Enum.reduce(chunk, [], fn _, acc ->
-                    acc ++ [Util.pickRandom(n_clients, rank)]         
+                    follower = Util.pickRandom(n_clients, rank)
+                    GenServer.cast({:global, :simulator}, {:follower, follower, state["rank"]})
+                    
+                    acc ++ [follower]         
                 end)
             end)     
         end)

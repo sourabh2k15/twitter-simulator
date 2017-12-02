@@ -1,6 +1,7 @@
 defmodule Simulator do
   @n_clients 10000
   @distibution_factor @n_clients / 100 |> round
+  @zipf_coeff 1.04
 
   use GenServer
   
@@ -16,20 +17,24 @@ defmodule Simulator do
 
       # creating more genservers to handle tweet creation process
 
-      num_tweet_producers = if @distibution_factor > 0 do
-         @n_clients / @distibution_factor |> round
-      else 
-         1
-      end
+      num_tweet_producers = @n_clients / @distibution_factor |> round
       
       tweet_producers = Enum.reduce(0..num_tweet_producers, %{}, fn i, acc -> 
         {:ok, tweet_producer_id} = TweetProducer.start_link(tweets, hashtags, @n_clients)
         Map.put(acc, i, tweet_producer_id)
       end)
 
+      #compute zipf constant C
+      c = Enum.reduce(1..@n_clients, 0, fn i, acc ->
+        acc + (1 / :math.pow(i, @zipf_coeff)) 
+      end)
+
+      c = 1 / c
+
       initial_state = %{
         :tweet_producers => tweet_producers, 
-        :hashtags        => hashtags 
+        :hashtags        => hashtags, 
+        :c               => c 
       }
      
       GenServer.start_link(__MODULE__, initial_state, name: {:global, :simulator})  
@@ -41,19 +46,32 @@ defmodule Simulator do
     server = GenServer.whereis({:global, :server})
     send(server, {:num_clients, @n_clients})
     
-    clients = Enum.reduce(1..@n_clients, [], fn rank, t_clients -> 
-        num_followers = (@n_clients - 1) / rank |> round
-
-        {:ok, clientid} = Client.start_link(%{
+    chunks = Enum.chunk_every(1..@n_clients, 1000)
+    
+    chunked_tasks = Enum.map(chunks, fn chunk ->
+      Task.async(fn ->
+        
+        Enum.map(chunk, fn rank -> 
+          num_followers = @n_clients*(state[:c] / :math.pow(rank, @zipf_coeff)) |> round
+          
+          {:ok, clientid} = Client.start_link(%{
             "rank"          => rank, 
             "num_followers" => num_followers,
             "server"        => server,
             "n_clients"     => @n_clients
           })
+          
+          clientid
+        end)
 
-        t_clients ++ [clientid]
+      end) 
+    end)
+
+    clients = Enum.reduce(chunked_tasks, [], fn chunk_task, acc ->
+      acc ++ Task.await(chunk_task)
     end)
     
+    IO.inspect length(clients)
     state = Map.put(state, :clients, clients)
     {:ok, state}
   end
@@ -83,6 +101,11 @@ defmodule Simulator do
     }
 
     GenServer.cast({:global, :queryNode}, {:receive_settings, settings})
+    {:noreply, state}
+  end
+
+  def handle_cast({:follower, follower, followed}, state) do
+    GenServer.cast(Enum.at(state[:clients], follower-1), {:follow, followed})
     {:noreply, state}
   end
 

@@ -16,7 +16,7 @@ defmodule Processor do
     def handle_cast({:tweet, user, tweet, timestamp, retweet, origin}, state) do
     
         if retweet do
-            #IO.puts "client #{user} retweeted #{origin} : #{tweet} with timestamp #{timestamp}"
+            IO.puts "client #{user} retweeted #{origin} : #{tweet} with timestamp #{timestamp}"
         else
             IO.puts "client #{user} tweeted: #{tweet} with timestamp #{timestamp}"
         end

@@ -1,5 +1,5 @@
 defmodule Server do
-  @distibution_factor 1
+  @distibution_factor 1000
   @alphabet_size 26
   @run_time 10000
 
@@ -21,9 +21,6 @@ defmodule Server do
     {:ok, initial_state}
   end
 
-  '''
-    GET NUM_CLIENTS AND INITIALIZE TWEET PROCESSORS, TWEET STORES AND HASHTAG STORES 
-  '''
   def handle_info({:num_clients, num_clients}, state) do
     IO.puts "creating processors, data stores and hashtag stores to scale"
 
@@ -53,34 +50,19 @@ defmodule Server do
     {:noreply, state}
   end
 
-  '''
-    REGISTER USERS
-
-    @param rank, rank of client
-    @param pid,  process id of client process
-  ''' 
-
   def handle_info({:register, rank, pid}, state) do
     worker_index = rank / @distibution_factor |> round 
     GenServer.cast(state[:workers][worker_index][:datastore], {:register, rank, pid})
 
     {:noreply, state}  
   end
-  
-  '''
-    UPDATE FOLLOWERS
-
-    @param rank, rank of client
-    @param followers, list of ranks of clients following client with rank = @param rank 
-  '''
 
   def handle_info({:followers_update, rank, followers}, state) do
     worker_index = rank / @distibution_factor |> round 
     GenServer.cast(state[:workers][worker_index][:datastore], {:followers, rank, followers})
     
     {_, state} = Map.get_and_update(state, :counter, fn x -> {x, x + 1} end)
-    IO.puts state[:num_clients]
-
+    
     if state[:counter] == state[:num_clients] do
       IO.puts "done creating follower relations, network will now start tweeting" 
       
@@ -91,21 +73,19 @@ defmodule Server do
     {:noreply, state}  
   end
 
+  def handle_info({:exit}, state) do
+    main = :global.whereis_name("main")
+    send(main, {:exit, "server", state[:total_tweets], @run_time})
+    
+    {:noreply, state}
+  end
 
-  '''
-    HANDLE USER TWEET
-  
-    @param clientid , rank of user
-    @param tweet    , tweet string
-    @param timestamp, of when it was generated on client 
-  '''
-
-  def handle_call({:tweet, rank, tweet, timestamp, retweet, origin}, _from, state) do
+  def handle_cast({:tweet, rank, tweet, timestamp, retweet, origin}, state) do
     worker_index =  rank / @distibution_factor |> round 
     GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp, retweet, origin})
 
     {_, state} = Map.get_and_update(state, :total_tweets, fn x -> {x, x+1} end)
-    {:reply, {"tweet call acknowledge"}, state}
+    {:noreply, state}
   end
 
   def handle_cast({:query, query, source}, state) do
@@ -116,14 +96,4 @@ defmodule Server do
     {:noreply, state}
   end
 
-  def handle_cast({:query, query, byMentioned}, state) do
-    IO.puts "user query"
-    {:noreply, state}
-  end
-
-  def handle_info({:exit}, state) do
-    main = :global.whereis_name("main")
-    send(main, {:exit, "server", state[:total_tweets], @run_time})
-    {:noreply, state}
-  end
 end

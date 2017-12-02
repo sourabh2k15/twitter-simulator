@@ -49,7 +49,11 @@ defmodule Main do
     def wait() do
         receive do
             {:exit, "server", tweets, time} ->
-                IO.puts "server ended tweets: #{tweets}, time: #{time}"
+                GenServer.stop({:global, :simulator}, :shutdown)
+                GenServer.stop({:global, :server}, :normal)
+
+                :timer.sleep 3000
+                IO.puts "\n\n\n\n server ended tweets: #{tweets}, time: #{time}"
             {msg} -> 
                 IO.puts "message received on main thread: #{msg}"    
         end
