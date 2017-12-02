@@ -1,5 +1,0 @@
-  followers = state[:follower_map][clientid]
-    
-    Enum.each(followers, fn rank ->
-       GenServer.cast(state[:user_map][rank], {:subscribed_tweet, clientid, tweet, timestamp})
-    end)
