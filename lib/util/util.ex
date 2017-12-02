@@ -16,4 +16,8 @@ defmodule Util do
     def rand(r_min, r_max) do
         rand_int = :rand.uniform()*(r_max - r_min + 1) |> :math.floor |> Kernel.+(r_min) |> round
     end
+
+    def log2(n) do
+        :math.log(n) / :math.log(2) |> round
+    end
 end

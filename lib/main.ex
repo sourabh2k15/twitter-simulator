@@ -20,10 +20,6 @@ defmodule Main do
         connect("client", Simulator)
     end
 
-    def parse_args(["query"]) do
-       connect("query", Query)
-    end
-
     def parse_args(_) do
         IO.puts "please provide an argument 'server' / 'client' "
     end
@@ -49,10 +45,8 @@ defmodule Main do
     def wait() do
         receive do
             {:exit, "server", tweets, time} ->
-                GenServer.stop({:global, :simulator}, :shutdown)
                 GenServer.stop({:global, :server}, :normal)
 
-                :timer.sleep 3000
                 IO.puts "\n\n\n\n server ended tweets: #{tweets}, time: #{time}"
             {msg} -> 
                 IO.puts "message received on main thread: #{msg}"    
