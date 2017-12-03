@@ -20,10 +20,10 @@ defmodule Client do
     end
 
     def handle_info({:tweet}, state) do
-        kill    = (Util.rand(0, 100000) == 100000)
+        kill    = (Util.rand(0, 1000) == 1000)
         
         state = if kill do
-            GenServer.cast(state["server"], {:logout, state["rank"]})
+            GenServer.cast(state["server"], {:logout, state["rank"], :os.system_time(:nano_seconds)})
             Map.put(state, "live", false)
         else
             state
@@ -32,11 +32,18 @@ defmodule Client do
         if state["live"] do
             {tweet, timestamp} = TweetProducer.createTweet(state["tweets"], state["hashtags"], state["n_clients"])
             IO.puts "user #{state["rank"]} tweeted: #{tweet}"
-        
-            GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp, false, nil})
+            
+            if tweet != nil do
+                GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp, false, nil})
+            end
+
             Process.send_after(self(), {:tweet}, @time_factor*state["rank"])
         else
             IO.puts "client #{state["rank"]} logged out"
+            timeout = Util.rand(1000, 2000)
+            :timer.sleep timeout
+
+            GenServer.cast(state["server"], {:logged_in, state["rank"], :os.system_time(:nano_seconds)})
         end
 
         {:noreply, state}
@@ -52,24 +59,28 @@ defmodule Client do
         timestamp_new = :os.system_time(:nano_seconds)
         GenServer.cast({:global, :simulator}, {:latency, timestamp_new - timestamp})
 
-        retweet = (Util.rand(1, 10*state["num_followers"]) > 6*state["num_followers"])
+        retweet = ((Util.rand(1, 10*state["num_followers"]) > 6*state["num_followers"]))
+        query   = (Util.rand(1, 10000) > 9940)
 
         if retweet do
             Process.sleep state["rank"]*@time_factor
-            GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp, retweet, source})        
+            GenServer.cast(state["server"], {:tweet, state["rank"], tweet, timestamp, retweet, origin})        
+        end
+
+        if query do
+            q = generateQuery(state["n_clients"], state["hashtags"])
+            
+            if q != "" do 
+               GenServer.cast(state["server"], {:query, q, self()}) 
+               IO.puts "user #{state["rank"]} querying server: #{q}"
+            end
         end
 
         {:noreply, state}
     end
 
-    def handle_cast({:follow, followed}, state) do
-        {_, state} = Map.get_and_update(state, "followed", fn x -> 
-            if x == nil do
-                {x, [followed]}
-            else 
-                {x, x ++ [followed]}
-            end
-        end)
+    def handle_cast({:query_result, query, result}, state) do
+        IO.puts "query result, #{query}, #{inspect result}"
 
         {:noreply, state}
     end
@@ -88,11 +99,9 @@ defmodule Client do
         chunks = Enum.chunk_every(1..num_followers, @chunk_factor)
 
         chunked_tasks = Enum.map(chunks, fn chunk -> 
-            task = Task.async(fn ->
-                followers_chunk = Enum.reduce(chunk, [], fn _, acc ->
+            Task.async(fn ->
+                Enum.reduce(chunk, [], fn _, acc ->
                     follower = Util.pickRandom(n_clients, rank)
-                    GenServer.cast({:global, :simulator}, {:follower, follower, state["rank"]})
-                    
                     acc ++ [follower]         
                 end)
             end)     
@@ -103,5 +112,19 @@ defmodule Client do
         end)
 
         Kernel.send(state["server"], {:followers_update, state["rank"], followers}) 
+    end
+
+    def generateQuery(n_clients, hashtags) do
+        type = Enum.random([0,1,2])
+        
+        query = if type == 0 do
+            Integer.to_string(Util.rand(1, 100))
+        else 
+            if type == 1 do
+                "@"<>Integer.to_string(Util.rand(1, 100 |> round))
+            else    
+                Enum.at(hashtags, Util.rand(0, length(hashtags)))
+            end
+        end
     end
 end

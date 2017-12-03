@@ -28,7 +28,7 @@ defmodule HashtagStore do
 
     def handle_cast({:query, query, source}, state) do
         result = state[:data][query]
-        GenServer.cast(source, {:result, query, result})
+        GenServer.cast(source, {:query_result, query, result})
         
         {:noreply, state}
     end

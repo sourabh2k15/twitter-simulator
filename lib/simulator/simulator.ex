@@ -1,6 +1,6 @@
 defmodule Simulator do
   @n_clients 10000
-  @zipf_coeff 1.07
+  @zipf_coeff 1.5
 
   use GenServer
   
@@ -84,12 +84,6 @@ defmodule Simulator do
     {:noreply, state}
   end
 
-  def handle_cast({:follower, follower, followed}, state) do
-    GenServer.cast(Enum.at(state[:clients], follower-1), {:follow, followed})
-    {:noreply, state}
-  end
-
-
   def handle_cast({:latency, timediff}, state) do
     {_, state} = Map.get_and_update(state, :latency, fn x -> 
       {x, x + timediff}
@@ -102,10 +96,20 @@ defmodule Simulator do
     {:noreply, state}
   end
 
+  def handle_cast({:get_settings}, state) do
+    settings = %{
+      :num_clients => @n_clients,
+      :hashtags    => state[:hashtags]
+    }
+
+    GenServer.cast({:global, :queryNode}, {:receive_settings, settings})
+    {:noreply, state}  
+  end
+
   def handle_info({:end}, state) do
     IO.puts "end"
 
-    IO.inspect state[:latency] / (state[:samples]*1000000)
+    IO.inspect state[:latency] / (state[:samples]*1000000000)
     Process.exit(self(), :shutdown)
    
     {:noreply, state}

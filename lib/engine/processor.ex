@@ -13,8 +13,10 @@ defmodule Processor do
     end
 
     def handle_cast({:tweet, user, tweet, timestamp, retweet, origin}, state) do
-        tweet_data = process_tweet(user, tweet, timestamp)
-       
+        
+        tweet_data = process_tweet(user, tweet, timestamp)  
+        origin = if origin == nil do user else origin end
+
         # store tweets into in-memory databases ( maps )
         if !retweet do
             GenServer.call(state[:my_datastore], {:store_tweet, tweet_data[:tweet_id], user, tweet})
@@ -64,7 +66,8 @@ defmodule Processor do
         if isAlive do 
             GenServer.cast(user_pid, {:subscribed_tweet, source, tweet, timestamp, retweet, origin})
         else 
-             IO.puts "user not live, tweet has to be delivered when user logins again"
+            user_index = Util.log2(user)
+            GenServer.cast(state[:workers][user_index][:datastore], {:undelivered, user, timestamp, retweet, source})
         end
 
         {:noreply, state}

@@ -83,25 +83,52 @@ defmodule Server do
   end
 
   def handle_cast({:tweet, rank, tweet, timestamp, retweet, origin}, state) do
-    worker_index =  Util.log2(rank)
-    GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp, retweet, origin})
-
-    {_, state} = Map.get_and_update(state, :total_tweets, fn x -> {x, x+1} end)
-    {:noreply, state}
-  end
-
-  def handle_cast({:query, query, source}, state) do
-    if String.at(query, 0) == "#" do
-      GenServer.cast(state[:hashtag_stores][String.at(query, 1)], {:query, query, source})
+    
+    {_, state} = if tweet != nil do 
+      worker_index =  Util.log2(rank)
+      GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp, retweet, origin})
+  
+      Map.get_and_update(state, :total_tweets, fn x -> {x, x+1} end)
+    else
+      {nil, state}
     end
 
     {:noreply, state}
   end
 
-  def handle_cast({:logout, rank}, state) do
-    worker_index =  Util.log2(rank)
-    GenServer.cast(state[:workers][worker_index][:datastore], {:logout, rank})
+  def handle_cast({:query, query, source}, state) do
+    IO.puts query
 
+    if String.at(query, 0) == "#" do
+      GenServer.cast(state[:hashtag_stores][String.at(query, 1)], {:query, query, source})
+    else 
+      if String.at(query, 0) == "@" do
+        user = String.slice(query, 1, String.length(query)) |> String.to_integer
+        user_index = Util.log2(user)
+
+        GenServer.cast(state[:workers][user_index][:datastore], {:query, user, query, source, true})
+      else
+        user = String.to_integer(query)
+        user_index = Util.log2(user)
+
+        GenServer.cast(state[:workers][user_index][:datastore], {:query, user, query, source, false})
+      end
+    end
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:logout, rank, lastseen}, state) do
+    worker_index =  Util.log2(rank)
+    GenServer.cast(state[:workers][worker_index][:datastore], {:logout, rank, lastseen})
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:logged_in, user, time}, state) do
+    worker_index = Util.log2(user)
+    GenServer.cast(state[:workers][worker_index][:datastore], {:logged_in, user, time})
+    
     {:noreply, state}
   end
 

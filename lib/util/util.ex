@@ -15,6 +15,12 @@ defmodule Util do
     # generates random number in range 
     def rand(r_min, r_max) do
         rand_int = :rand.uniform()*(r_max - r_min + 1) |> :math.floor |> Kernel.+(r_min) |> round
+
+        if rand_int != nil do 
+            rand_int
+        else
+            rand(r_min, r_max)
+        end
     end
 
     def log2(n) do
