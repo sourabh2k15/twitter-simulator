@@ -83,7 +83,12 @@ defmodule Server do
   end
 
   def handle_cast({:tweet, rank, tweet, timestamp, retweet, origin}, state) do
-    
+    if !retweet do 
+      IO.puts "user #{rank} tweeted tweet: #{tweet}"
+    else
+      IO.puts "user #{rank} retweeted user #{origin}'s tweet: #{tweet}'"
+    end
+
     {_, state} = if tweet != nil do 
       worker_index =  Util.log2(rank)
       GenServer.cast(state[:workers][worker_index][:processor], {:tweet, rank, tweet, timestamp, retweet, origin})
@@ -97,7 +102,7 @@ defmodule Server do
   end
 
   def handle_cast({:query, query, source}, state) do
-    IO.puts query
+    IO.puts "query received for: #{query}"
 
     if String.at(query, 0) == "#" do
       GenServer.cast(state[:hashtag_stores][String.at(query, 1)], {:query, query, source})
